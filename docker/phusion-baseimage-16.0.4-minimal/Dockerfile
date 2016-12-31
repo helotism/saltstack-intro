@@ -6,7 +6,7 @@ RUN /etc/my_init.d/00_regen_ssh_host_keys.sh
 RUN /usr/sbin/enable_insecure_key
 
 RUN apt-get update && apt-get upgrade -y -o Dpkg::Options::="--force-confold"
-RUN apt-get install locales
+RUN apt-get install locales iputils-ping
 #http://stackoverflow.com/a/40235306
 ENV TZ=Europe/Berlin
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone

@@ -1,4 +1,4 @@
-FROM helotism/heftydoseofsalt-minimal-ubuntu:latest
+FROM debian:jessie
 MAINTAINER  Christian Prior "cprior@gmail.com"
 
 # ...put your own build instructions here...
@@ -6,8 +6,6 @@ RUN curl -L https://bootstrap.saltstack.com | sh -s -- -L -A saltmaster -X git v
 
 #RUN mkdir /etc/service/saltmaster
 #ADD docker/assets/phusion-baseimage/saltmaster.sh /etc/service/saltmaster/run
-RUN mkdir /etc/service/saltminion
-ADD assets/phusion-baseimage/saltminion.sh /etc/service/saltminion/run
+#RUN mkdir /etc/service/saltminion
+#ADD docker/assets/phusion-baseimage/saltminion.sh /etc/service/saltminion/run
 
-# Use baseimage-docker's init system.
-CMD ["/sbin/my_init"]

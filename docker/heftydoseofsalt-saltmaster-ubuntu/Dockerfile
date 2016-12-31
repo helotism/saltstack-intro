@@ -1,4 +1,4 @@
-FROM helotism/heftydoseofsalt-minimal:latest
+FROM helotism/heftydoseofsalt-minimal-ubuntu:latest
 MAINTAINER  Christian Prior "cprior@gmail.com"
 
 # ...put your own build instructions here...
