@@ -1,0 +1,54 @@
+{
+    "saltmaster": {
+        "jid": "20161231102232403210", 
+        "retcode": 0, 
+        "ret": {
+            "osrelease": "16.04", 
+            "kernel": "Linux", 
+            "fqdn": "saltmaster", 
+            "ip4_interfaces": {
+                "lo": [
+                    "127.0.0.1"
+                ], 
+                "eth1": [
+                    "172.76.4.2"
+                ], 
+                "eth0": [
+                    "172.17.0.2"
+                ]
+            }, 
+            "ipv4": [
+                "127.0.0.1", 
+                "172.17.0.2", 
+                "172.76.4.2"
+            ], 
+            "oscodename": "xenial", 
+            "os": "Ubuntu"
+        }, 
+        "out": "nested"
+    }, 
+    "saltminion01": {
+        "jid": "20161231102232403210", 
+        "retcode": 0, 
+        "ret": {
+            "osrelease": "16.04", 
+            "kernel": "Linux", 
+            "fqdn": "saltminion01", 
+            "ip4_interfaces": {
+                "lo": [
+                    "127.0.0.1"
+                ], 
+                "eth0": [
+                    "172.76.4.3"
+                ]
+            }, 
+            "ipv4": [
+                "127.0.0.1", 
+                "172.76.4.3"
+            ], 
+            "oscodename": "xenial", 
+            "os": "Ubuntu"
+        }, 
+        "out": "nested"
+    }
+}
