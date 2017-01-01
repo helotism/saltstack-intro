@@ -1,0 +1,68 @@
+{
+    "saltminion02": {
+        "jid": "20170101143320800818", 
+        "retcode": 0, 
+        "ret": {
+            "osrelease": "8.6", 
+            "kernel": "Linux", 
+            "ip4_interfaces": {
+                "lo": [
+                    "127.0.0.1"
+                ], 
+                "eth0": [
+                    "172.76.4.4"
+                ]
+            }, 
+            "os_family": "Debian", 
+            "oscodename": "jessie", 
+            "osfinger": "Debian-8", 
+            "os": "Debian", 
+            "id": "saltminion02"
+        }, 
+        "out": "nested"
+    }, 
+    "saltminion01": {
+        "jid": "20170101143320800818", 
+        "retcode": 0, 
+        "ret": {
+            "osrelease": "16.04", 
+            "kernel": "Linux", 
+            "ip4_interfaces": {
+                "lo": [
+                    "127.0.0.1"
+                ], 
+                "eth0": [
+                    "172.76.4.3"
+                ]
+            }, 
+            "os_family": "Debian", 
+            "oscodename": "xenial", 
+            "osfinger": "Ubuntu-16.04", 
+            "os": "Ubuntu", 
+            "id": "saltminion01"
+        }, 
+        "out": "nested"
+    }, 
+    "minion-on-saltmaster": {
+        "jid": "20170101143320800818", 
+        "retcode": 0, 
+        "ret": {
+            "osrelease": "16.04", 
+            "kernel": "Linux", 
+            "ip4_interfaces": {
+                "lo": [
+                    "127.0.0.1"
+                ], 
+                "eth0": [
+                    "172.76.4.2"
+                ]
+            }, 
+            "os_family": "Debian", 
+            "oscodename": "xenial", 
+            "osfinger": "Ubuntu-16.04", 
+            "os": "Ubuntu", 
+            "id": "minion-on-saltmaster"
+        }, 
+        "out": "nested"
+    }
+}
