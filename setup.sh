@@ -18,7 +18,9 @@ __DOCKERNETWORKNAME="heftydoseofsalt"
 docker build -q -t helotism/heftydoseofsalt-minimal-ubuntu:$(head -n 1 VERSION) -t helotism/heftydoseofsalt-minimal-ubuntu:latest -f docker/phusion-baseimage-16.0.4-minimal/Dockerfile docker/
 docker build -q -t helotism/heftydoseofsalt-saltmaster-ubuntu:$(head -n 1 VERSION) -t helotism/heftydoseofsalt-saltmaster-ubuntu:latest -f docker/heftydoseofsalt-saltmaster-ubuntu/Dockerfile docker/
 docker build -q -t helotism/heftydoseofsalt-saltminion-ubuntu:$(head -n 1 VERSION) -t helotism/heftydoseofsalt-saltminion-ubuntu:latest -f docker/heftydoseofsalt-saltminion-ubuntu/Dockerfile docker/
+docker build    -t helotism/heftydoseofsalt-saltminion-debian:$(head -n 1 VERSION) -t helotism/heftydoseofsalt-saltminion-debian:latest -f docker/heftydoseofsalt-saltminion-debian/Dockerfile docker/
 docker rmi -f $(docker images --filter "dangling=true" -q)
+exit 0
 
 isexisting=false
 while read dockernetwork; do
@@ -48,7 +50,16 @@ docker run -d --hostname saltminion01 --name saltminion01 \
 -v saltminion01-etc-salt:/etc/salt \
 helotism/heftydoseofsalt-saltminion-ubuntu:latest /sbin/my_init
 
-#exit 0
+docker run -d --hostname saltminion02 --name saltminion02 \
+--network=heftydoseofsalt \
+-v saltminion02-etc-salt:/etc/salt \
+helotism/heftydoseofsalt-saltminion-debian:latest 
+
+exit 0
+#/** 
+#  * ----------------------------------------------------------------
+#  * 
+#  */
 sleep 3
 saltmasterIP=$(docker inspect -f "{{ .NetworkSettings.IPAddress }}" $( docker ps | grep saltmaster | awk {'print $1'}))
 saltminion01IP=$(docker inspect -f "{{ .NetworkSettings.IPAddress }}" $( docker ps | grep saltminion01 | awk {'print $1'}))
