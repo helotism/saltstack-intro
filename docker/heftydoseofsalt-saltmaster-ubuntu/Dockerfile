@@ -2,7 +2,7 @@ FROM helotism/heftydoseofsalt-minimal-ubuntu:latest
 MAINTAINER  Christian Prior "cprior@gmail.com"
 
 # ...put your own build instructions here...
-RUN curl -L https://bootstrap.saltstack.com | sh -s -- -M -L -A saltmaster -X git v2016.11.1
+RUN curl -L https://bootstrap.saltstack.com | sh -s -- -M -L -A saltmaster -i minion-on-saltmaster -X git v2016.11.1
 
 RUN mkdir /etc/service/saltmaster
 ADD assets/phusion-baseimage/saltmaster.sh /etc/service/saltmaster/run
@@ -11,6 +11,7 @@ ADD assets/phusion-baseimage/saltminion.sh /etc/service/saltminion/run
 
 EXPOSE 4505
 EXPOSE 4506
+EXPOSE 8888
 
 # Use baseimage-docker's init system.
 CMD ["/sbin/my_init"]
