@@ -1,4 +1,6 @@
-salt/assets/etc/
-salt/assets/var/
-salt/saltminion01/
+app/saltstack/assets/etc/
+app/saltstack/assets/var/
+app/saltstack/saltminion01/
 *-checkpoint.ipynb
+.ipynb_checkpoints
+app/saltstack/assets/srv/salt/win*

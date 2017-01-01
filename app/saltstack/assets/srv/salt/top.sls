@@ -1,8 +1,8 @@
 base:
-  'kernel:Linux':
+  '*':
     - common
     - users
 
-  'saltmaster':
+  'minion-on-saltmaster':
     - saltmaster
     - dataanalysis

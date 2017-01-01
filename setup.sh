@@ -15,12 +15,11 @@ set -o nounset #exit on undeclared variable
 
 __DOCKERNETWORKNAME="heftydoseofsalt"
 
-docker build -q -t helotism/heftydoseofsalt-minimal-ubuntu:$(head -n 1 VERSION) -t helotism/heftydoseofsalt-minimal-ubuntu:latest -f docker/phusion-baseimage-16.0.4-minimal/Dockerfile docker/
-docker build -q -t helotism/heftydoseofsalt-saltmaster-ubuntu:$(head -n 1 VERSION) -t helotism/heftydoseofsalt-saltmaster-ubuntu:latest -f docker/heftydoseofsalt-saltmaster-ubuntu/Dockerfile docker/
-docker build -q -t helotism/heftydoseofsalt-saltminion-ubuntu:$(head -n 1 VERSION) -t helotism/heftydoseofsalt-saltminion-ubuntu:latest -f docker/heftydoseofsalt-saltminion-ubuntu/Dockerfile docker/
-docker build    -t helotism/heftydoseofsalt-saltminion-debian:$(head -n 1 VERSION) -t helotism/heftydoseofsalt-saltminion-debian:latest -f docker/heftydoseofsalt-saltminion-debian/Dockerfile docker/
+docker build    -t helotism/heftydoseofsalt-minimal-ubuntu:$(head -n 1 VERSION)    -t helotism/heftydoseofsalt-minimal-ubuntu:latest    -f tec/docker/phusion-baseimage-16.0.4-minimal/Dockerfile  tec/docker/
+docker build    -t helotism/heftydoseofsalt-saltmaster-ubuntu:$(head -n 1 VERSION) -t helotism/heftydoseofsalt-saltmaster-ubuntu:latest -f tec/docker/heftydoseofsalt-saltmaster-ubuntu/Dockerfile tec/docker/
+docker build    -t helotism/heftydoseofsalt-saltminion-ubuntu:$(head -n 1 VERSION) -t helotism/heftydoseofsalt-saltminion-ubuntu:latest -f tec/docker/heftydoseofsalt-saltminion-ubuntu/Dockerfile tec/docker/
+docker build    -t helotism/heftydoseofsalt-saltminion-debian:$(head -n 1 VERSION) -t helotism/heftydoseofsalt-saltminion-debian:latest -f tec/docker/heftydoseofsalt-saltminion-debian/Dockerfile tec/docker/
 docker rmi -f $(docker images --filter "dangling=true" -q)
-exit 0
 
 isexisting=false
 while read dockernetwork; do
@@ -33,62 +32,15 @@ if [ "$isexisting" = false ]; then
 fi
 unset $isexisting
 
-docker run -d --hostname saltmaster --name saltmaster -p 4505:4505 -p 4506:4506 \
---network=heftydoseofsalt \
--v saltmaster-etc-salt:/etc/salt \
--v /var/cache/salt \
--v /var/log/salt \
--v $(pwd)/salt/assets/srv/salt:/srv/salt \
--v $(pwd)/salt/assets/srv/pillar:/srv/pillar \
--v $(pwd)/salt/assets/srv/formulas:/srv/formulas \
-helotism/heftydoseofsalt-saltmaster-ubuntu:latest /sbin/my_init
-
-docker network connect bridge saltmaster 
-
-docker run -d --hostname saltminion01 --name saltminion01 \
---network=heftydoseofsalt \
--v saltminion01-etc-salt:/etc/salt \
-helotism/heftydoseofsalt-saltminion-ubuntu:latest /sbin/my_init
-
-docker run -d --hostname saltminion02 --name saltminion02 \
---network=heftydoseofsalt \
--v saltminion02-etc-salt:/etc/salt \
-helotism/heftydoseofsalt-saltminion-debian:latest 
-
 exit 0
+
 #/** 
 #  * ----------------------------------------------------------------
 #  * 
 #  */
-sleep 3
-saltmasterIP=$(docker inspect -f "{{ .NetworkSettings.IPAddress }}" $( docker ps | grep saltmaster | awk {'print $1'}))
-saltminion01IP=$(docker inspect -f "{{ .NetworkSettings.IPAddress }}" $( docker ps | grep saltminion01 | awk {'print $1'}))
-echo ${saltmasterIP}; echo ${saltminion01IP}; sleep 2
-ssh -i docker/assets/phusion-baseimage/insecure_key root@${saltmasterIP}
 
-while true; do
-  read -p "Stop all containers? [Yn] " yn
-  [ -z "$yn" ] && yn="y"
-  case $yn in
-    [Yy]* ) docker stop saltmaster;
-            docker stop saltminion01;
-            break;;
-    [Nn]* ) break;;
-    * ) echo "Please answer yes or no.";;
-  esac
-done
-while true; do
-  read -p "Delete all containers? [yN] " yn
-  [ -z "$yn" ] && yn="n"
-  case $yn in
-    [Yy]* ) docker rm saltmaster;
-            docker rm saltminion01;
-            break;;
-    [Nn]* ) break;;
-    * ) echo "Please answer yes or no.";;
-  esac
-done
-
+#saltmasterIP=$(docker inspect -f "{{ .NetworkSettings.IPAddress }}" $( docker ps | grep saltmaster | awk {'print $1'}))
+#ssh -i docker/assets/phusion-baseimage/insecure_key root@${saltmasterIP}
 #docker stop saltmaster
 #docker rm saltmaster
 #docker stop saltminion01
@@ -99,5 +51,5 @@ done
 # for i in $(docker images | grep helotism | awk 'BEGIN {OFS=":"} {print $1,$2}'); do docker rmi $i; done
 # docker network inspect heftydoseofsalt
 # docker inspect saltmaster | grep -A 10 Mounts
-
+# docker-compose build
 exit 0
