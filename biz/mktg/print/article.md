@@ -74,3 +74,134 @@ W7-minion:
         new:
             2.30.1
         old:
+
+
+dd bs=4M if=2016-11-25-raspbian-jessie.img of=/dev/sdd
+
+#https://docs.saltstack.com/en/latest/topics/installation/debian.html#installation-from-the-debian-raspbian-official-repository
+
+echo 'deb http://archive.raspbian.org/raspbian/ stretch main' >> /etc/apt/sources.list
+echo 'APT::Default-Release "jessie";' > /etc/apt/apt.conf.d/10apt
+
+apt-get update
+apt-get install python-zmq python-tornado/stretch salt-common/stretch
+
+apt-get update
+apt-get install python-zmq python-tornado/stretch
+
+pi@raspberrypi:~ $ cat /etc/os-release 
+PRETTY_NAME="Raspbian GNU/Linux 8 (jessie)"
+NAME="Raspbian GNU/Linux"
+VERSION_ID="8"
+VERSION="8 (jessie)"
+ID=raspbian
+ID_LIKE=debian
+HOME_URL="http://www.raspbian.org/"
+SUPPORT_URL="http://www.raspbian.org/RaspbianForums"
+BUG_REPORT_URL="http://www.raspbian.org/RaspbianBugs"
+pi@raspberrypi:~ $ if grep "ID=raspbian" /etc/os-release ; then echo "r"; else echo "nr"; fi
+ID=raspbian
+
+pi@raspberrypi:~ $ if grep -q "ID=raspbian" /etc/os-release ; then echo "r"; else echo "nr"; fi
+
+## Eine praktische Einführung
+
+Wer die folgenden Kommandos selbst nachvollziehen moechte, sollte eine frische Installation in einer Testumgebung wählen, weil mit root-Rechten theoretisch unbegrenzt in das System eingegriffen wird.
+Selbst der relativ leistungsschwache Raspberry Pi Modell B mit 512 MB reicht als Salt Master Server fuer erste Tests aus, mit einer Handvoll Minions kommt die verfügbare Hardware zurecht.
+
+Ziel dieses ersten Kennenlernens ist, die vorstehende theoretischen Erklärungen zu festigen.
+Dazu wird
+- Saltstack als Master und Minion instaliert
+- die public/private key Authentifizierung nachvollzogen
+- ein Benutzer angelegt
+- ein systemweiter Editor festgelegt
+
+### Die Installation
+
+Neben der Installation
+- aus den Paketquellen der Distribution existiert auch
+- der Weg über ein "Bootstrap-Script"
+welches ein Wrapper um Paketmanager und pip ist und einige 
+
+Die Dokumentation unter https://docs.saltstack.com/en/latest/topics/installation/ ist für jede Distribution sehr übersichtlich. Das Bootstrap-Script hat eine gute eingebaute Liste der Parameter beim Aufruf mit `-h` -- oder nachlesar auf GitHub unter https://github.com/saltstack/salt-bootstrap/blob/develop/bootstrap-salt.sh.
+
+Das aktuelle Raspbian 2016-11-25-raspbian-jessie hat Stand Anfang Januar 2017 einige veraltete Schlüssel, die zuerst nachinstalliert werden. Ein mehrfacher Aufruf schadet übrigens nicht.
+
+```
+if grep -q 'PRETTY_NAME="Raspbian GNU/Linux 8 (jessie)"' /etc/os-release ; then
+  gpg --keyserver pgpkeys.mit.edu --recv-key 8B48AD6246925553
+  gpg -a --export 8B48AD6246925553 | sudo apt-key add -
+  gpg --keyserver pgpkeys.mit.edu --recv-key 7638D0442B90D010
+  gpg -a --export 7638D0442B90D010 | sudo apt-key add -
+fi; \
+myIP=$(/sbin/ip -4 -o addr show dev eth0| awk '{split($4,a,"/");print a[1]}'); \
+curl -L https://bootstrap.saltstack.com | sudo sh -s -- -U -P -M -L -A ${myIP} -i minion-on-saltmaster git v2016.11.1
+```
+Installiert wird die momentan aktuelle Version v2016.11.1 und es wird mit `-M` auch ein Master installiert und dessen Adresse als IP eingetragen (der Default-Wert ist der hostname `salt`, der in diesem Artikel aber aus pädagogischen Gründen vermieden werden soll) . Wollte man keinen Minion installieren, müsste das mit `-N` explizit angegeben werden. Hier aber ist das nicht der Fall, sondern darüber hinaus wird der Identifier des Minions mit `-i` angegeben. Vorbereitend für weitergehende Beispiele wird mittels `-L` auch die Komponente für cloudbasierte Zielsysteme installiert. Ganz zu Beginn aber mit `-U` ein komplettes Systemupdate gemacht, auf Raspbian also ein `apt-get upgrade`. Bei der Installation von Salt selbst wird auf pip Pakete zurückgegriffen. Unter dem aktuellen Rapsbian ist dies ein Muss, weil das Paket für python-tornado mittels Distribution veraltet ist (und das Bootstrap-Script nicht zwischen Debian und Raspbian unterscheidet -- unter Debian hingegen funktioniert es.)
+
+Das Resultat sollte zum Ende hin so aussehen:
+```
+ *  INFO: Running install_debian_git_post()
+Created symlink from /etc/systemd/system/multi-user.target.wants/salt-master.service to /lib/systemd/system/salt-master.service.
+Created symlink from /etc/systemd/system/multi-user.target.wants/salt-minion.service to /lib/systemd/system/salt-minion.service.
+ *  INFO: Running install_debian_check_services()
+ *  INFO: Running install_debian_restart_daemons()
+ *  INFO: Running daemons_running()
+ *  INFO: Salt installed!
+pi@raspberrypi:~ $ 
+```
+
+Ob beide Prozesse im Hintergrund laufen, zeigt `sudo systemctl status salt-minion.service` und `sudo systemctl status salt-master.service`, auf schwacher Hardware kann der komplette Start aber durchaus zwei bis drei Minuten dauern.
+
+Im Logfile des Minion wird sichtbar, wenn der Minion sich beim Master gemeldet hat:
+```
+sudo tail -f /var/log/salt/minion 
+<snip />
+2017-01-03 06:10:35,700 [salt.minion      ][ERROR   ][10897] Error while bringing up minion for multi-master. Is master at 10.76.33.112 responding?
+2017-01-03 06:10:45,814 [salt.crypt       ][ERROR   ][10897] The Salt Master has cached the public key for this node, this salt minion will wait for 10 seconds before attempting to re-authenticate
+```
+Die letzte Zeile wiederholt sich, bis der Master den Minion akzeptiert.
+
+Weil auf diesem System Master und Minion installiert sind, kann im selben Terminal `salt-key -L` für `--list-all` aufgerufen werden, zur Auflistung der momentan bekannten Minion-Schlüssel:
+```
+sudo salt-key -L
+Accepted Keys:
+Denied Keys:
+Unaccepted Keys:
+minion-on-saltmaster
+Rejected Keys:
+```
+Der Schlüssel des Minion liegt in `/etc/salt/pki/minion/minion.pem` und `/etc/salt/pki/minion/minion.pub` und der Master verwaltet seinen Schlüssel und die der Minions in der Ordnerstruktur unterhalb von `/etc/salt/pki/master`:
+```
+sudo ls /etc/salt/pki/master
+master.pem  minions           minions_denied  minions_rejected
+master.pub  minions_autosign  minions_pre
+```
+
+Wie am Ordernamen zu erahnen, kann vor der Installation eines Minions bereits ein Schlüssel generiert werden und automatisch akzeptiert. Dies ist hier nicht geschehen, weshalb der auf dem gleichen System laufende Minion akzeptiert werden muss mit:
+
+```
+sudo salt-key -a minion-on-saltmaster
+```
+Der Vorgang sieht so aus:
+```
+pi@raspberrypi:~ $ sudo salt-key -a minion-on-saltmaster
+The following keys are going to be accepted:
+Unaccepted Keys:
+minion-on-saltmaster
+Proceed? [n/Y] y
+Key for minion minion-on-saltmaster accepted.
+pi@raspberrypi:~ $
+```
+
+Das Hallo-Welt-Beispiel einer frischen Saltstask-Installation ist dann:
+```
+sudo salt 'minion-on-saltmaster' test.ping
+```
+Das Resultat:
+```
+pi@raspberrypi:~ $ sudo salt 'minion-on-saltmaster' test.ping
+minion-on-saltmaster:
+    True
+pi@raspberrypi:~ $ 
+```
