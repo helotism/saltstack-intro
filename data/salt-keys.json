@@ -1,0 +1,13 @@
+{
+    "minions_rejected": [], 
+    "minions_denied": [], 
+    "minions_pre": [
+        "T500-2017", 
+        "W7-minion"
+    ], 
+    "minions": [
+        "minion-on-saltmaster", 
+        "saltminion01", 
+        "saltminion02"
+    ]
+}
