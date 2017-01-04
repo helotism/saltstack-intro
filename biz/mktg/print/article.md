@@ -1,37 +1,103 @@
 # Gut gewürzt: Automatisierung mit Saltstack
 
-Neben den Platzhirschen des Config Managements gibt es mit Saltstack eine beachtenswerte Variante, um Befehle auf entfernten Systemen auszuführen (Remote Execution), Abweichungen von definierten Zielzuständen zu beheben, Instanzen bei Cloud-Anbietern zu verwalten (......) oder diese Infrastruktur-Informationen in Quellcodeverwaltung zu hinterlegen. Dieser Artikel soll die Arbeit mit Saltstack vorstellen.
+Neben den Platzhirschen des Config Managements gibt es mit Saltstack eine beachtenswerte Variante, um Befehle auf entfernten Systemen auszuführen (Remote Execution), Abweichungen von definierten Zielzuständen zu beheben, Instanzen bei rund zwei Dutzend Cloud-Anbietern oder auf einem Hypervisor zu verwalten beispielsweise bei Azure, Amazon EC2, Proxmox oder VMWare) oder diese Infrastruktur-Informationen in Quellcodeverwaltung zu hinterlegen. Dieser Artikel soll die Arbeit mit Saltstack vorstellen.
 
-...
+Der Autor dieses Artikels verwaltet mit Saltstack ein Raspberry-Pi-Cluster und auch den privaten Laptop. Im Unternehmenseinsatz ist Saltstack unter anderem Basis des Suse Manager.
 
-...
 
 ## Entwicklung
 
-Saltstack wird sehr aktiv auf GitHub entwickelt, und ist ein Produkt der ...., das Geschäftsmodell beruht auf Supportverträgen. Mehrfach pro Jahr werden Releases als Snapshot veröffentlicht, das jetzige Namensschema ist yyyy.m und die aktive Entwicklung findet in Zweigen mit Namen wie Thorium, .... statt. Als Python-Software wird die Dokumentation im Code als ... gepflegt, parallel dazu ist die über .... erreichbare Handbuch-Webseite ebenfalls im Repo enthalten. Die Mailingliste in Form der Google-Group salt-users sowie der IRC-Channel #salt auf freenode sind neben den GitHub-Issues weitere Informationsquellen.
+Saltstack wird sehr aktiv auf GitHub entwickelt, und ist ein Produkt des gleichnamigen Unernehmens aus Utah, das Geschäftsmodell beruht auf Supportverträgen und der Enterprise-Version mit Frontend. Mitarbeiter sind in den GitHub-Issues aktiv und nehmen dort Produktmanagement-Aufgaben wahr. Mehrfach pro Jahr werden Releases als Snapshot veröffentlicht, das jetzige ist v2016.11.1, nach den vorigen v2016.3 und v2015.8. Als Python-Software wird die Dokumentation im Code als Docstrings gepflegt und auf der Kommandozeile zugänglich, parallel dazu ist die über http://docs.saltstack.com/ erreichbare Handbuch-Webseite ebenfalls im Repo enthalten. Die Mailingliste in Form der Google-Group salt-users sowie der IRC-Channel #salt auf freenode sind weitere Informationsquellen.
 
 ## Installation
 
-Saltstack ist als Paket in allen Distributionen enthalten, kann aber auch mit einem Shell-Script boitstrap..... installiert werden. Dieses ist sehr mächtig und nimmt eine Vielzahl Optionen an, dadurch ist das Script bequem in post-install-hooks einzusetzen. Die Verwendung dieses Scripts kann der Autor ausdrücklich empfehlen.
+Saltstack ist als Paket in allen Distributionen enthalten, kann aber auch mit dem "Salt Bootstrap"-Script installiert werden. Dieses ist sehr mächtig und nimmt eine Vielzahl Optionen entgegen, wodurch es bequem in post-install-hooks eingesetzt werden kann. Die Verwendung dieses Scripts kann der Autor ausdrücklich empfehlen.
 
-Die zentrale(n) Instanz(en) sind nur für GNU/Linux-Betriebssysteme implementiert, aber es können auch Windows-Systeme unter Verwaltung gebracht werden.
+Die zentrale(n) Instanz(en) sind nur für GNU/Linux-Betriebssysteme implementiert, aber es können als abhängige Systeme ("Minions") aber auch  Windows-Systeme unter Verwaltung gebracht werden.
 
-Saltstack hat derzeit kein nennenswertes grafisches Frontend, sondern wird wird typischerweise über Kommandozeilenaufrufe verwendet, oder arbeitet im Hintergrund. Die Integration in bestehende Oberflächen (und existierende Berechtigungskonzepte) kann mittels REST-API .... erfolgen oder die Python-Aufrufe anderweitig getätigt werden.
+Saltstack hat in der Community-Edition "Salt Open" derzeit kein nennenswertes grafisches Frontend, sondern wird wird typischerweise über Kommandozeilenaufrufe verwendet, oder arbeitet im Hintergrund. Die Integration in bestehende Oberflächen (und existierende Berechtigungskonzepte) kann mittels "netapi" Webaufrufen erfolgen oder auf anderem Wege eine native Python-API verwendet werden.
 
+Sowohl Master als auch Minion werden standardmäßig als Benutzer `root` ausgeführt, der Konfigurationsparameter `user` kann aber auch auf einen anderen Benutzer zeigen. Egal unter welchem Benutzer der Master läuft: Der Minion nimmt von ihm alle Kommandos entgegen.
+
+Den Nutzern auf dem Salt Master können einzelne Module für wiederum einzelne Minions mittels `publisher_acl` freigegeben werden, etwa dem Datenbankadministrator die mysql.* Aufufe auf Minions mit dem Hostnamen db.*.
+
+Auf allen Distributionen installieren sich die Salstack-Komponenten als Dienst, können aber auch im Vordergrund und mit hohem Loglevel mittels `/usr/bin/salt-master -l debug` bzw. `/usr/bin/salt-minion -l debug` gestartet werden.
 
 ## Einige Definitionen
 
-An zentraler Stelle arbeitet der Salt-Master, er kontrolliert Minions (...) mit entweder einer Python-Agentensoftware, über eine SSH-Verbindung oder auch einen (individuell zu schreibenden) Proxy-Minion als Interface zu einem Webservice oder sonst betriebssystemlosen Gerät.
+An zentraler Stelle arbeitet der Salt-"Master", er versorgt Minions mit entweder einer Python-Agentensoftware, über eine SSH-Verbindung oder auch einen (individuell zu schreibenden) Proxy-Minion als Interface zu einem Webservice oder sonst betriebssystemlosen Gerät.
 
-Die Minions melden sich über .... ZeroMQ beim Master mit einem individuellen Schlüssel, welcher bei Bedarf im Vorfeld generiert werden kann, oder bei erster Abmeldung (wahlweise automatisch) bestätigt werden muss.
+Die Minions melden sich über (die Python-Bindings von) ZeroMQ beim Master mit einem individuellen Schlüssel, welcher bei Bedarf im Vorfeld generiert werden kann. Der Master muss den Schlüssel des Minions nach dessen erster Kontaktaufnahme bestätigen, dem Master wird der Schlüssel zur automatischen Bestätigung vorher übertragen.
 
-Der Master kann als .... dupliziert werden, in Verbindung mit einer entsprechenden Topologie auch Subnetze übergreifend. Auf dem Master kann auch ein Minion zur Selbstverwaltung laufen.
+Der Master kann als "Syndic" dupliziert werden, in Verbindung mit einer entsprechenden Netzwerk-Topologie auch Subnetze übergreifend. Auf dem Master kann auch ein Minion zur Selbstverwaltung laufen. Minions können auf mehrere Master ("multi-master") horchen.
 
-Die Konfiguration von Master und Minion erfolgt in Dateien in /etc/salt ....Windows...  Die Dateien /etc/salt/master und /etc/salt/Minion enthalten alle default-Konfigurationsparameter als auskommentierte Zeilen. Eine dieser Einstellungen ist, in /etc/salt/master.d/ oder minion.d/ alle Dateien mit der (konfigurierbaren) Endung .conf einzulesen. ...merge... ...sortorder...
+Die Konfiguration von Master und Minion erfolgt in Dateien in /etc/salt/, unter Windows i nC:\salt\config\minion. Die Dateien /etc/salt/master und /etc/salt/Minion enthalten alle default-Konfigurationsparameter als auskommentierte Zeilen. Eine dieser Einstellungen `default_include` ist, in /etc/salt/master.d/ oder minion.d/ alle Dateien mit der Endung .conf einzulesen, die Inhalte der Datei mit dem letzten alphanumerischen Dateinamen gewinnen.
+
+Eine wichtige (nicht ganz intuitiv zu verstehende) Unterscheidung sind "Execution Modules" und "States": Zwar spielt Saltstack seine Stärke vor allem dann aus, wenn die Ziel-Status eines Minions als Textdatei definiert wird ("infrastructure as code"), aber auf der Kommandozeile lassen sich ebenfalls Saltstack Module aufrufen, und zwar nicht nur von Master, sondern auch von einem "standalone minion". Ein Beispiel soll es verdeutlichen:
+
+```
+root@saltmaster:~# salt -C 'G@os_family:Arch and G@init:systemd' pkg.install libmicrohttpd
+logsrv-arch-01:
+    ----------
+    libmicrohttpd:
+        ----------
+        new:
+            0.9.52-1
+        old:
+root@saltmaster:~# 
+```
+Hier wird vom Master aus auf allen Minions mit der zusammengesetzten/"compound" ID aus ArchLinux und Systemd als Initprozess die rein optionale Abhängigkeit `libmicrohttpd` installiert. Denn um mit Zertifikaten abgesichert remote Logdateien zu übertragen, ist diese Abhängigkeit nicht mehr optional.
+
+Die Dokumentation findet sich also von https://docs.saltstack.com/en/latest/ref/modules/all/salt.modules.pkg.html verlinkt.
 
 
-Eine wichtige, nicht ganz intuitiv zu verstehende Unterscheidung, sind Module und States. .....
-Die in der Dokumentation verwendete Form der State-Files ist YAML, daneben sind aber auch ....-templates implementiert und selbst auch reines Python ist möglich: Saltstack erzeugt unter der Haube daraus Python-Dictionaries,  die ......
+Die Definition in einem State ergibt letztlich das gleiche Resultat:
+
+```
+root@saltmaster:~# cat /srv/salt/top.sls
+base:
+  'G@os_family:Arch and G@init:systemd':
+    - match: compound
+    - tutorial/remoteloggingdeps
+root@saltmaster:~# cat /srv/salt/tutorial/remoteloggingdeps.sls
+ensure needed dependency:
+  pkg.installed:
+    - name: libmicrohttpd
+
+root@saltmaster:~# salt 'logsrv-arch-01' state.highstate
+logsrv-arch-01:
+----------
+          ID: ensure needed dependency
+    Function: pkg.installed
+        Name: libmicrohttpd
+      Result: True
+     Comment: Package libmicrohttpd is already installed
+     Started: 20:54:40.407961
+    Duration: 139.701 ms
+     Changes:   
+
+Summary for logsrv-arch-01
+------------
+Succeeded: 1
+Failed:    0
+------------
+Total states run:     1
+Total run time: 139.701 ms
+root@saltmaster:~#
+```
+
+Die Namensgebung von Saltstack folgt hier in der Verwendung von Verben und Adjektiven den Üblichkeiten bei Endlichen Automaten, Zustände mit Eigenschaften und Übergänge mit Tätigkeiten zu benennen.
+
+Diese Unterscheidung ist deshalb wichtig, um die richtige Dokumentation zu finden:
+https://docs.saltstack.com/en/latest/ref/modules/all/index.html
+https://docs.saltstack.com/en/latest/ref/states/all/index.html
+
+
+Die in der Dokumentation verwendete Form der State-Files ist YAML, daneben sind aber auch eine Vielzahl weiterer "Renderer-Module" https://docs.saltstack.com/en/latest/ref/renderers/all/index.html implementiert und selbst auch reines Python ist möglich: Saltstack erzeugt unter der Haube daraus Python-Dictionaries.
+Auch eine Verkettung von Renderern ist möglich.
+
+.....
+
 In wenn-dann-Bedingungen können die feinen Unterschiede zwischen Distributionen abstrahiert werden, in Schleifen eine Reihe von Benutzern bearbeitet oder ...
 
 Die in state-files hinterlegten Informationen werden in einer Art Broadcast an alle (per key akzeptierten) Minions geschickt. Vertrauliche Informationen sind daher ein Fall für die Pillar genannte Verteilung.
@@ -47,62 +113,13 @@ Neben der Messagequeue beruht die Funktionsweise stark auf Dateisynchronisation.
 Zwischen den Minions...
 
 
-
-salt-run winrepo.update_git_repos
-winrepo_provider: gitpython
-salt -G 'os:windows' pkg.refresh_db
-
-salt-run winrepo.genrepo
-salt winminion pkg.refresh_db
-
-https://github.com/saltstack/salt-winrepo.git
-
-salt '*' status.uptime
-
-salt -G 'os:windows' pkg.list_pkgs
-salt '*' status.uptime
-
-salt -G 'os:windows' pkg.install gedit
-W7-minion:
-    ----------
-    gedit:
-        ----------
-        install status:
-            success
-    gedit 2.30.1:
-        ----------
-        new:
-            2.30.1
-        old:
+state_top_saltenv
+top_file_merging_strategy
+env_order
+default_top
 
 
-dd bs=4M if=2016-11-25-raspbian-jessie.img of=/dev/sdd
 
-#https://docs.saltstack.com/en/latest/topics/installation/debian.html#installation-from-the-debian-raspbian-official-repository
-
-echo 'deb http://archive.raspbian.org/raspbian/ stretch main' >> /etc/apt/sources.list
-echo 'APT::Default-Release "jessie";' > /etc/apt/apt.conf.d/10apt
-
-apt-get update
-apt-get install python-zmq python-tornado/stretch salt-common/stretch
-
-apt-get update
-apt-get install python-zmq python-tornado/stretch
-
-pi@raspberrypi:~ $ cat /etc/os-release 
-PRETTY_NAME="Raspbian GNU/Linux 8 (jessie)"
-NAME="Raspbian GNU/Linux"
-VERSION_ID="8"
-VERSION="8 (jessie)"
-ID=raspbian
-ID_LIKE=debian
-HOME_URL="http://www.raspbian.org/"
-SUPPORT_URL="http://www.raspbian.org/RaspbianForums"
-BUG_REPORT_URL="http://www.raspbian.org/RaspbianBugs"
-pi@raspberrypi:~ $ if grep "ID=raspbian" /etc/os-release ; then echo "r"; else echo "nr"; fi
-ID=raspbian
-
-pi@raspberrypi:~ $ if grep -q "ID=raspbian" /etc/os-release ; then echo "r"; else echo "nr"; fi
 
 ## Eine praktische Einführung
 
@@ -125,9 +142,10 @@ welches ein Wrapper um Paketmanager und pip ist und einige
 
 Die Dokumentation unter https://docs.saltstack.com/en/latest/topics/installation/ ist für jede Distribution sehr übersichtlich. Das Bootstrap-Script hat eine gute eingebaute Liste der Parameter beim Aufruf mit `-h` -- oder nachlesar auf GitHub unter https://github.com/saltstack/salt-bootstrap/blob/develop/bootstrap-salt.sh.
 
-Das aktuelle Raspbian 2016-11-25-raspbian-jessie hat Stand Anfang Januar 2017 einige veraltete Schlüssel, die zuerst nachinstalliert werden. Ein mehrfacher Aufruf schadet übrigens nicht.
+Das aktuelle Raspbian 2016-11-25-raspbian-jessie https://downloads.raspberrypi.org/raspbian_latest hat Stand Anfang Januar 2017 einige veraltete Schlüssel, die zuerst nachinstalliert werden. Ein mehrfacher Aufruf schadet übrigens nicht.
 
 ```
+dd bs=4M if=2016-11-25-raspbian-jessie.img of=/dev/mmblkreplacethis
 if grep -q 'PRETTY_NAME="Raspbian GNU/Linux 8 (jessie)"' /etc/os-release ; then
   gpg --keyserver pgpkeys.mit.edu --recv-key 8B48AD6246925553
   gpg -a --export 8B48AD6246925553 | sudo apt-key add -
@@ -194,7 +212,7 @@ Key for minion minion-on-saltmaster accepted.
 pi@raspberrypi:~ $
 ```
 
-Das Hallo-Welt-Beispiel einer frischen Saltstask-Installation ist dann:
+Das Hallo-Welt-Beispiel einer frischen Saltstack-Installation ist dann:
 ```
 sudo salt 'minion-on-saltmaster' test.ping
 ```
@@ -204,4 +222,53 @@ pi@raspberrypi:~ $ sudo salt 'minion-on-saltmaster' test.ping
 minion-on-saltmaster:
     True
 pi@raspberrypi:~ $ 
+```
+
+
+### Vertrauliche Stoffe
+
+pillar
+
+### Wiederaufgewärmte Formeln
+
+
+Hiermit endet der Mitmachteil.
+
+## Fortgeschrittene Anwendung
+
+### GitHub remote
+
+### Proxy-Minion
+
+### salt-cloud mit DigitalOcean
+
+### Das andere Betriebssystem
+
+```
+salt-run winrepo.update_git_repos
+winrepo_provider: gitpython
+salt -G 'os:windows' pkg.refresh_db
+
+salt-run winrepo.genrepo
+salt winminion pkg.refresh_db
+
+https://github.com/saltstack/salt-winrepo.git
+
+salt '*' status.uptime
+
+salt -G 'os:windows' pkg.list_pkgs
+salt '*' status.uptime
+
+salt -G 'os:windows' pkg.install gedit
+W7-minion:
+    ----------
+    gedit:
+        ----------
+        install status:
+            success
+    gedit 2.30.1:
+        ----------
+        new:
+            2.30.1
+        old:
 ```
