@@ -1,7 +1,7 @@
 FROM helotism/heftydoseofsalt-minimal-ubuntu:latest
 MAINTAINER  Christian Prior "cprior@gmail.com"
 
-# ...put your own build instructions here...
+# -M master -L cloud
 RUN curl -L https://bootstrap.saltstack.com | sh -s -- -M -L -A saltmaster -i minion-on-saltmaster -X git v2016.11.1
 
 RUN mkdir /etc/service/saltmaster
