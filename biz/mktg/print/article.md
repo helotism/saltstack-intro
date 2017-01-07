@@ -2,7 +2,7 @@
 
 Neben den Platzhirschen des Config Managements gibt es mit Saltstack eine beachtenswerte Variante, um Befehle auf entfernten Systemen auszuführen (Remote Execution), Abweichungen von definierten Zielzuständen zu beheben, Instanzen bei rund zwei Dutzend Cloud-Anbietern oder auf einem Hypervisor zu verwalten beispielsweise bei Azure, Amazon EC2, Proxmox oder VMWare) oder diese Infrastruktur-Informationen in Quellcodeverwaltung zu hinterlegen. Dieser Artikel soll die Arbeit mit Saltstack vorstellen.
 
-Der Autor dieses Artikels verwaltet mit Saltstack ein Raspberry-Pi-Cluster und auch den privaten Laptop. Im Unternehmenseinsatz ist Saltstack unter anderem Basis des Suse Manager.
+Der Autor dieses Artikels verwaltet mit Saltstack ein Raspberry-Pi-Cluster und auch den privaten Laptop. Im Unternehmenseinsatz ist Saltstack unter anderem Basis des Suse Manager. Ab einer installierten Basis von mehreren tausend verwalteten Systemen stehen in der Haupt-Konfigurationsdatei Parameter zur Anpassung bereit. Die Größe einer Installation bemisst sich aber nicht nur nach der Anzahl, sondern auch der Häufigkeit der Kommunikation zwischen den Systemen und der Komplexität der verwalteten Zusammenhänge.
 
 
 ## Entwicklung
@@ -27,11 +27,15 @@ Auf allen Distributionen installieren sich die Salstack-Komponenten als Dienst, 
 
 An zentraler Stelle arbeitet der Salt-"Master", er versorgt Minions mit entweder einer Python-Agentensoftware, über eine SSH-Verbindung oder auch einen (individuell zu schreibenden) Proxy-Minion als Interface zu einem Webservice oder sonst betriebssystemlosen Gerät.
 
-Die Minions melden sich über (die Python-Bindings von) ZeroMQ beim Master mit einem individuellen Schlüssel, welcher bei Bedarf im Vorfeld generiert werden kann. Der Master muss den Schlüssel des Minions nach dessen erster Kontaktaufnahme bestätigen, dem Master wird der Schlüssel zur automatischen Bestätigung vorher übertragen.
+Die Minions melden sich über (die Python-Bindings von) ZeroMQ beim Master mit einem individuellen Schlüssel, welcher bei Bedarf im Vorfeld generiert werden kann. Der Master muss den Schlüssel des Minions nach dessen erster Kontaktaufnahme bestätigen, dem Master wird der Schlüssel zur automatischen Bestätigung vorher übertragen. Bei Bedarf kann eine TLS-Verschlüsselung zwischen Master und Minion in der Konfiguration aktiviert werden, standardmäßig ist sie nicht aktiviert.
+
+
 
 Der Master kann als "Syndic" dupliziert werden, in Verbindung mit einer entsprechenden Netzwerk-Topologie auch Subnetze übergreifend. Auf dem Master kann auch ein Minion zur Selbstverwaltung laufen. Minions können auf mehrere Master ("multi-master") horchen.
 
-Die Konfiguration von Master und Minion erfolgt in Dateien in /etc/salt/, unter Windows i nC:\salt\config\minion. Die Dateien /etc/salt/master und /etc/salt/Minion enthalten alle default-Konfigurationsparameter als auskommentierte Zeilen. Eine dieser Einstellungen `default_include` ist, in /etc/salt/master.d/ oder minion.d/ alle Dateien mit der Endung .conf einzulesen, die Inhalte der Datei mit dem letzten alphanumerischen Dateinamen gewinnen.
+Die Konfiguration von Master und Minion erfolgt in Dateien in /etc/salt/, unter Windows in C:\salt\config\minion. Die Dateien /etc/salt/master und /etc/salt/Minion enthalten alle default-Konfigurationsparameter als auskommentierte Zeilen. Eine dieser Einstellungen `default_include` ist, in /etc/salt/master.d/ oder minion.d/ alle Dateien mit der Endung .conf einzulesen, die Inhalte der Datei mit dem letzten alphanumerischen Dateinamen gewinnen.
+
+Was der Saltstack Master mit seinen Minions tun soll, wird üblicherweise in Textdateien unte `/srv/salt` festgelegt. Es ist aber nahezu trivial, andere Quellen von entfernten Systemen einzubinden: Mit weniger als zehn Zeilen Konfiguration mittels `fileserver_backend` und `gitfs_remotes` lässt sich ein GitHub-Repository einbinden, bei voller Flexibilität in der Verzeichnisstruktur und Branches. Ebenso sind Mercurial, SVN, S3fs und Azurefs möglich. Die eigene .vimrc in einem privaten Bitbucket-Repo kommt mit Saltstack an verblüffend viele Ablageorte, und lässt sich unterwegs dorthin sogar Host-individuell umschreiben.
 
 Eine wichtige (nicht ganz intuitiv zu verstehende) Unterscheidung sind "Execution Modules" und "States": Zwar spielt Saltstack seine Stärke vor allem dann aus, wenn die Ziel-Status eines Minions als Textdatei definiert wird ("infrastructure as code"), aber auf der Kommandozeile lassen sich ebenfalls Saltstack Module aufrufen, und zwar nicht nur von Master, sondern auch von einem "standalone minion". Ein Beispiel soll es verdeutlichen:
 
@@ -100,7 +104,7 @@ Auch eine Verkettung von Renderern ist möglich.
 
 In wenn-dann-Bedingungen können die feinen Unterschiede zwischen Distributionen abstrahiert werden, in Schleifen eine Reihe von Benutzern bearbeitet oder ...
 
-Die in state-files hinterlegten Informationen werden in einer Art Broadcast an alle (per key akzeptierten) Minions geschickt. Vertrauliche Informationen sind daher ein Fall für die Pillar genannte Verteilung.
+Die in state-files hinterlegten Informationen werden in einer Art Broadcast an alle (per key akzeptierten) Minions geschickt. Vertrauliche Informationen sind daher ein Fall für die Pillar genannte Verteilung, welche diese Daten nur zwischen dem Master und dem Minion austauscht, für den die Information bestimmt ist.
 
 Die Minions werden mit Jobs angesprochen, die Returnwerte werden typischerweise auf der Kommandozeile angezeigt, können aber mit Returners.... weiterverarbeitet werden.
 
@@ -108,7 +112,7 @@ Von den Minions wird ein Soft-und Hardware-Inventory in Form von grains abgerufe
 
 Ein flexiblerer Reaktionsweg auf Minion-Zustandsänderungen sind die beacons: Hier beginnt die MesssageQueue... ihre Stärke an den Tag zu legen. Läuft etwa die Festplatte eines Minions voll, ist ein Schwellwert als Auslöser eines beacon-events konfigurierbar, der auf dem Master von einem .... verarbeitet wird. Diese Events kommen in Form eines Pfades an, so dass auch mit Wildcards ein .... getriggert werden kann.
 
-Neben der Messagequeue beruht die Funktionsweise stark auf Dateisynchronisation...: Damit ein Minion eine Module-Funktion ausführen kann, muss die entsprechende Datei auf dem Minion vorhanden sein. Saltstack synchronisiert daher die mitgelieferten oder vom Benutzer erstellten Python-Dateien im Hintergrund.
+Neben der Messagequeue beruht die Funktionsweise stark auf Dateisynchronisation...: Damit ein Minion eine Module-Funktion ausführen kann, muss die entsprechende Datei auf dem Minion vorhanden sein. Saltstack synchronisiert daher die mitgelieferten oder vom Benutzer erstellten Python-Dateien im Hintergrund. Auch dieser Austausch ist in ZeroMq implementiert.
 
 Zwischen den Minions...
 
@@ -117,6 +121,7 @@ state_top_saltenv
 top_file_merging_strategy
 env_order
 default_top
+master_tops
 
 
 
@@ -272,3 +277,14 @@ W7-minion:
             2.30.1
         old:
 ```
+
+# Wege zur Saltstack-Kennerschaft
+
+event bus beobachten
+- Returners
+Jobs
+
+
+Saltstack arbeitet als Python-Software letztlich mit dem Datentyp dictionary. Dass in Saltstack normalerweise YAML-Dateien geschrieben werden, ist nur die Oberfläche des Salzbergs. Saltstack kann letztlich alles entgegennehmen, was ein Python dictionary ausgibt, auch die YAML-Dateien laufen nur durch PyYAML. Im Verbund mit einer netzwerkfähigen Messagequeue und Dateisynchronisation erscheint der aktuelle Saltstack Slogan "Automatisierung des Rechenzentrums" sehr eng gegriffen. Vielmehr ist in allen Umgebungen, wo ein Python-Interpreter vorstellbar ist und noch kein Scheduler notwendig, Saltstack als Messagebus-Statemachine eine umfassende und verlässliche Variante, hochkomplexe Umgebungen zu verwalten.
+
+
