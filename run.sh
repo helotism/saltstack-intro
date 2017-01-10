@@ -2,11 +2,11 @@
 
 docker ps --all --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
 
-for c in saltmaster saltminion01 saltminion02 ;
-  do docker start $c;
-done
-
-exit 0
+#for c in saltmaster saltminion01 saltminion02 ;
+#  do docker start $c;
+#done
+#
+#exit 0
 
 docker run -d --hostname saltmaster --name saltmaster -p 8888:8888 -p 4505:4505 -p 4506:4506 \
 --network=heftydoseofsalt \

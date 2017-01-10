@@ -41,11 +41,8 @@ exit 0
 
 #saltmasterIP=$(docker inspect -f "{{ .NetworkSettings.IPAddress }}" $( docker ps | grep saltmaster | awk {'print $1'}))
 #ssh -i docker/assets/phusion-baseimage/insecure_key root@${saltmasterIP}
-#docker stop saltmaster
-#docker rm saltmaster
-#docker stop saltminion01
-#docker rm saltminion01
-#rm -rf /salt/assets/etc/salt/pki
+#for c in saltmaster saltminion02 saltminion01; do docker stop $c; docker rm $c; done
+#rm -rf app/saltstack/assets/etc/salt/pki
 # curl -u "cprior" https://api.github.com/orgs/helotism/repos -d '{"name":"saltstack-intro","description":"Gut gewuerzt -- a hefty dose of salt","homepage":"http://www.helotism.de/","auto_init":"true","license_template":"mit","has_wiki":"true","has_issues":"true","has_downloads":"false"}'
 # i="";for frml in users dnsmasq ; do echo $frml; git remote add remote${i}_${frml}-formula git@github.com:saltstack-formulas/${frml}-formula.git; git fetch remote${i}_${frml}-formula; git read-tree --prefix=salt/assets/srv/formulas/${frml}_formula -u remote${i}_${frml}-formula/master; done
 # for i in $(docker images | grep helotism | awk 'BEGIN {OFS=":"} {print $1,$2}'); do docker rmi $i; done
