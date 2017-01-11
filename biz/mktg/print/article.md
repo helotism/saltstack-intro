@@ -135,8 +135,8 @@ Ziel dieses ersten Kennenlernens ist, die vorstehende theoretischen Erklärungen
 Dazu wird
 - Saltstack als Master und Minion instaliert
 - die public/private key Authentifizierung nachvollzogen
-- ein Benutzer angelegt
 - ein systemweiter Editor festgelegt
+- ein Benutzer angelegt
 
 ### Die Installation
 
@@ -230,9 +230,83 @@ pi@raspberrypi:~ $
 ```
 
 
-### Vertrauliche Stoffe
+### Zustand des Systems, Vertrauliche Stoffe und Ausführungsmodule
 
-pillar
+Zum jetzigen Zeitpunkt ist Saltack installiert, aber kennt noch keine Zielzustände. Es stehen auf Master und Minion diverse Kommandozeilenprogramme zur Verfügung (`salt-key` wurde schon verwendet). Auf dem zuvor installierten System sind Master und Minion installiert.
+
+Der Minion kann mit seinen eigenen Rechten (in der Regel ebenfalls `root`) auf sich selbst auch Aktionen ausführen. Folgende Aufrufe sind, abgesehen von leichten Unterschieden in der Verwendung der Messageque, für den Anwender identisch; zuerst setzt der Minion auf sich selbst einen `test.ping` ab, danach setzt der Master:
+
+```
+root@saltmaster:~# salt-call test.ping
+local:
+    True
+root@saltmaster:~# salt 'minion-on-saltmaster' test.ping
+minion-on-saltmaster:
+    True
+```
+
+
+Die Liste der enthaltenen Ausführungsmodule findet sich unter https://docs.saltstack.com/en/2015.8/ref/modules/all/index.html und der Minion kann mit `salt-call --local test.ping` dieses und andere Module unter Umgehung der Messagequeue ausführen.
+
+
+Eine Vielfalt an vorangig statischen Informationen gibt der folgende Aufruf an das `grains` Teilsystem zurück, es ist eine Art Software- und Hardwareinventar. Wie alle dieser Aufrufe ist das Ausgebaformat wählbar, bsw als JSON:
+
+```
+salt 'minion-on-saltmaster' grains.items --out=json
+```
+
+Eine reduzierte Liste erhält man mit dem Ausführungsmodul im Singular:
+
+```
+root@saltmaster:~# salt 'minion-on-saltmaster' grains.item id zmqversion kernel os_family
+minion-on-saltmaster:
+    ----------
+    id:
+        minion-on-saltmaster
+    kernel:
+        Linux
+    os_family:
+        Raspbian
+    zmqversion:
+        4.1.4
+```
+
+Nur die Liste aller vorgehaltenen Datenschnippsel ohne deren Werte liefert `salt 'minion-on-saltmaster' grains.ls`.
+
+In YAML-Notation kann in `/etc/salt/minion`, `/etc/salt/minion.d/*conf`, `/etc/salt/grains` oder auch in eigenen Python-Modulen in `/srv/salt/_grains/` der Inhalt der `grains` beeinflusst werden.
+
+Sollte es notwendig sein, die `grains`-Daten neu einzulesen, so macht das `salt 'minion-on-saltmaster' saltutil.sync_grains`.
+
+Mit `grains` kann selektiert werden, welche Zielsysteme angesprochen werden sollen. Zum Beispiel kann der Minion nicht mittels seiner ID angesprochen werden, sondern anhand von `grains`:
+
+```
+pi@raspberrypi:~ $ sudo salt -G 'os:Raspbian' test.ping
+minion-on-saltmaster:
+    True
+```
+
+/etc/salt/grains
+informatik: aktuell
+
+```
+pi@raspberrypi:~ $ sudo  salt-call --local grains.item id informatik
+local:
+    ----------
+    id:
+        minion-on-saltmaster
+    informatik:
+        aktuell
+```
+
+
+Nicht alle Konfigurationsparameter eignen sich für den `grains` Mechanismus, denn `grains` sind allen Minions zugänglich. Benutzerpasswörter, Lizenzschlüssel oder andere vertrauliche Daten werden unter Saltstack in einem "pillar" genannten Modul verwaltet.
+
+
+
+
+Üblicherweise zeigt die Master Konfiguration mittels `pillar_roots` auf /srv/pillar mit einer Dateistruktur analog zu den state files unter `/srv/salt`.
+
+
 
 ### Wiederaufgewärmte Formeln
 
