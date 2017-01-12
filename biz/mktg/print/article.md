@@ -171,7 +171,6 @@ Created symlink from /etc/systemd/system/multi-user.target.wants/salt-minion.ser
  *  INFO: Running install_debian_restart_daemons()
  *  INFO: Running daemons_running()
  *  INFO: Salt installed!
-pi@raspberrypi:~ $ 
 ```
 
 Ob beide Prozesse im Hintergrund laufen, zeigt `sudo systemctl status salt-minion.service` und `sudo systemctl status salt-master.service`, auf schwacher Hardware kann der komplette Start aber durchaus zwei bis drei Minuten dauern.
@@ -234,7 +233,7 @@ pi@raspberrypi:~ $
 
 Zum jetzigen Zeitpunkt ist Saltack installiert, aber kennt noch keine Zielzustände. Es stehen auf Master und Minion diverse Kommandozeilenprogramme zur Verfügung (`salt-key` wurde schon verwendet). Auf dem zuvor installierten System sind Master und Minion installiert.
 
-Der Minion kann mit seinen eigenen Rechten (in der Regel ebenfalls `root`) auf sich selbst auch Aktionen ausführen. Folgende Aufrufe sind, abgesehen von leichten Unterschieden in der Verwendung der Messageque, für den Anwender identisch; zuerst setzt der Minion auf sich selbst einen `test.ping` ab, danach setzt der Master:
+Der Minion kann mit seinen eigenen Rechten (in der Regel ebenfalls `root`) auf sich selbst auch Aktionen ausführen. Folgende Aufrufe sind, abgesehen von leichten Unterschieden in der Verwendung der Messagequeue, für den Anwender identisch; zuerst setzt der Minion auf sich selbst einen `test.ping` ab, danach setzt der Master:
 
 ```
 root@saltmaster:~# salt-call test.ping
@@ -246,29 +245,23 @@ minion-on-saltmaster:
 ```
 
 
-Die Liste der enthaltenen Ausführungsmodule findet sich unter https://docs.saltstack.com/en/2015.8/ref/modules/all/index.html und der Minion kann mit `salt-call --local test.ping` dieses und andere Module unter Umgehung der Messagequeue ausführen.
+Die Liste der enthaltenen Ausführungsmodule findet sich unter https://docs.saltstack.com/en/2015.8/ref/modules/all/index.html und der Minion kann mit `salt-call --local test.ping` dieses und andere Module sogar unter Umgehung der Messagequeue ausführen.
 
 
-Eine Vielfalt an vorangig statischen Informationen gibt der folgende Aufruf an das `grains` Teilsystem zurück, es ist eine Art Software- und Hardwareinventar. Wie alle dieser Aufrufe ist das Ausgebaformat wählbar, bsw als JSON:
-
-```
-salt 'minion-on-saltmaster' grains.items --out=json
-```
-
-Eine reduzierte Liste erhält man mit dem Ausführungsmodul im Singular:
+Eine Vielfalt an vorangig statischen Informationen gibt der folgende Aufruf an das `grains` Teilsystem zurück, es ist eine Art Software- und Hardwareinventar. Wie alle dieser Aufrufe ist das Ausgabeformat wählbar, bsw als JSON. Eine Liste der Ausgabeformate findet sich unter https://docs.saltstack.com/en/latest/ref/output/all/index.html .
 
 ```
-root@saltmaster:~# salt 'minion-on-saltmaster' grains.item id zmqversion kernel os_family
-minion-on-saltmaster:
-    ----------
-    id:
-        minion-on-saltmaster
-    kernel:
-        Linux
-    os_family:
-        Raspbian
-    zmqversion:
-        4.1.4
+sudo salt 'minion-on-saltmaster' grains.items --out=json
+```
+
+Eine reduzierte Liste erhält man mit dem Ausführungsmodul im Singular und Nennung der Bezeichner:
+
+```
+sudo salt 'minion-on-saltmaster' grains.item id zmqversion kernel os_family --out=pprint
+{'minion-on-saltmaster': {'id': 'minion-on-saltmaster',
+                          'kernel': 'Linux',
+                          'os_family': 'Debian',
+                          'zmqversion': '4.1.4'}}
 ```
 
 Nur die Liste aller vorgehaltenen Datenschnippsel ohne deren Werte liefert `salt 'minion-on-saltmaster' grains.ls`.
@@ -285,19 +278,21 @@ minion-on-saltmaster:
     True
 ```
 
-/etc/salt/grains
+Ein Minimalbeispiel eigener `grains` ist, in `/etc/salt/grains` ein `key: value`-Paar zu setzen:
+
+```
+sed 's/^[ ]*//' <<EOF | sudo tee -a /etc/salt/grains
 informatik: aktuell
-
-```
-pi@raspberrypi:~ $ sudo  salt-call --local grains.item id informatik
-local:
-    ----------
-    id:
-        minion-on-saltmaster
-    informatik:
-        aktuell
+EOF
+sudo salt '*' saltutil.sync_grains
 ```
 
+Und im Anschluss damit zu selektieren:
+
+```
+sudo salt -G 'informatik:aktuell' test.ping --out=pprint
+{'minion-on-saltmaster': True}
+```
 
 Nicht alle Konfigurationsparameter eignen sich für den `grains` Mechanismus, denn `grains` sind allen Minions zugänglich. Benutzerpasswörter, Lizenzschlüssel oder andere vertrauliche Daten werden unter Saltstack in einem "pillar" genannten Modul verwaltet.
 
