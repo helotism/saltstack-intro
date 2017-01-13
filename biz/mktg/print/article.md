@@ -485,7 +485,19 @@ Hiermit endet der Mitmachteil. Die folgenden Codebeispiele und Kommandos sind zw
 
 Leider ist die Installation der Abhängigkeiten unter allen Distributionen nicht einheitlich, deswegen kann nicht copy&paste-fertig ein Minimalbeispiel angeboten werden. Aber dass Saltstack es besonders trivial macht, Systemadminstration aus einem Repository (Git, svn, Mercurial und andere) zu speisen macht die Verwendung in der Praxis so angenehm.
 
+An dieser Stelle einige Anmerkungen zur Verwendung von Git Repositories.
 
+Weil bei der Python-basierten Synchronisation mit entfernten Repositories eine Vielzahl von Abhängigkeiten bestehen (URLs, SSL, Authenifizierung u.v.a.m.), kann an dieser Stelle nur auf https://docs.saltstack.com/en/latest/topics/tutorials/gitfs.html und http://www.pygit2.org/install.html verwiesen werden. Es ist zu empfehlen, Pygit2 zu verwenden und insbesondere unter Debian-basierten Distributionen den auf der Pygit2-Seite genannten manuellen Schritte zu installieren, nachdem zuvor `cmake`, `cffi` und `libssl-dev` installiert wurde.
+
+Letztlich muss `python -c "import pygit2"` keinen Fehler zurückgeben, und im Master Logfiles kein Fehler wie "Failed to resolve address for https" zu finden.
+
+Dies ist jedoch nur auf dem Master notwendig, und vor allem deswegen aufwändig, weil zum Beispiel unter Ubuntu 16.04 das Paket zu Pygit2 nicht gegen die libssl kompiliert ist -- wird dann mit den https-Adressen eines Github-Repos fehlschlagen.
+
+Mit Pygit2 sind auch SSH-Schlüssel möglich, und Unterpfade des Repositories können an passender Stelle im Dateisystem des Masters eingehängt werden.
+
+Mit `gitfs_remote` ist unter Verwendung der Zugriffsrechteverwaltung des Sourcecodeverwaltungssystems dann auch leicht möglich, Branches auf `environments` zu mappen.
+
+In einem privaten Repository kann dann beispielsweise das auf eine bare-metal-Installation folgende customizing hinterlegt werden.
 
 ### Proxy-Minion
 
