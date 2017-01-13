@@ -294,23 +294,198 @@ sudo salt -G 'informatik:aktuell' test.ping --out=pprint
 {'minion-on-saltmaster': True}
 ```
 
+Eine verbreitete Anwendung von `grains` ist, damit einen oder mehrere Werte für einen Schlüssel `role` zu setzen. In den Definitionen der Zielzustände werden dann solcherart "rollenbasiert" die Minions adressiert.
+
+Auch auf der Kommandozeile kann ein `grains`-Paar gesetzt werden:
+
+```
+sudo salt 'minion-on-saltmaster' grains.setval roles  "['desktop', 'developer']"
+```
+
+Das Resultat:
+
+```
+cat /etc/salt/grains 
+roles:
+- desktop
+- developer
+sudo salt -G 'roles:desktop' test.ping
+minion-on-saltmaster:
+    True
+```
+
+
 Nicht alle Konfigurationsparameter eignen sich für den `grains` Mechanismus, denn `grains` sind allen Minions zugänglich. Benutzerpasswörter, Lizenzschlüssel oder andere vertrauliche Daten werden unter Saltstack in einem "pillar" genannten Modul verwaltet.
-
-
-
 
 Üblicherweise zeigt die Master Konfiguration mittels `pillar_roots` auf /srv/pillar mit einer Dateistruktur analog zu den state files unter `/srv/salt`.
 
+Die folgenden Kommandos stellen, immer noch innerhalb zuvorder installierten Testumgebung, ein Schlüssel-Werte-Paar `editor: vim` her:
 
+```
+if [ ! -d "/srv/pillar" ]; then sudo mkdir -p /srv/pillar; fi
+if [ -f "/srv/pillar/top.sls" ]; then sudo mv /srv/pillar/top.sls /srv/pillar/top.sls.bak; fi
+cat <<EOF | sudo tee -a /srv/pillar/top.sls > /dev/null
+base:
+  'minion-on-saltmaster':
+    - editor
+EOF
+sed 's/^[ ]*//' <<EOF | sudo tee /srv/pillar/editor.sls > /dev/null
+myeditor: vim
+EOF
+sudo salt 'minion-on-saltmaster' saltutil.refresh_pillar
+```
+
+Jetzt ist auf dem Master und nur auf dem Minion `minion-on-saltmaster` der Wert von `myeditor` bekannt. Andere Minions erfahren davon nichts, weil die Datei editor.sls (die Endung wird in der top.sls Datei weggelassen) auf den Minion `minion-on-saltmaster` beschränkt ist.
+
+Ein Einstieg in die Pillar-Dokumentation findet sich unter https://docs.saltstack.com/en/latest/topics/pillar/ .
+
+Nun wird es allerhöchste Zeit, zur zentralen Konfiguration zu kommen: Die Textdateien der `state` Zielzustände.
+
+Jede `state`-Definition ist einer Umgebung `environment` zugeordnet, die mit dem Namen `base` ist immer (verpflichtend) vorhanden und ist sozusagen die Produktivumgebung.
+
+Im Auslieferungszustand zeigt der Master Konfigurationsparameter `file_roots` für die `base`-Umgebung auf den Pfad `/srv/salt`. Ein Auszug aus der `/etc/salt/master`:
+
+```
+#file_roots:
+#  base:
+#    - /srv/salt
+```
+
+Eine typische Eweiterung eines Saltstack Konzeptes würde parallel dazu eine "testing" oder "development" Umgebung definieren. Die Reihenfolge, in der mögliche Neudefinitionen durch Kombinationen der Master Konfigurationsparameter `file_roots`, `env_order` oder `default_top` festlegbar.
+
+In den `state` (und `pillar` funktioniert nach dem gleichen Muster) Konfigurationen ist die Datei mit dem Namen `top.sls` eine besondere Datei: Sie ist der Einstieg in die Applikation und wird nach dem Start des Masters als erstes eingelesen, etwa wie eine Konfiguration eines Frontcontrollers einer Webapplikation.
+
+Diese Datei adressiert dann Minions, und verweist auf deren Zustandsdefinitionen. Ein Minimalbeispiel:
+
+```
+if [ -f "/srv/salt/top.sls" ]; then sudo mv /srv/salt/top.sls /srv/salt/top.sls.bak; fi
+cat <<EOF | sudo tee -a /srv/salt/top.sls > /dev/null
+base:
+  '*':
+    - common
+  'minion-on-saltmaster':
+    - editor
+EOF
+cat <<EOF | sudo tee /srv/salt/common.sls > /dev/null
+#minimal example:
+sudo:
+  pkg.installed
+
+#the first line is just an ID, and must be unique
+multiplexer:
+  pkg.installed:
+    #if no -name is given, the ID is assumed to be -name
+    - name: screen
+EOF
+```
+
+Es wird in der Standard-Umgebung `base` für jeden Minion der Zustand aus der Datei `/srv/salt/common.sls` definiert, und für den speziellen Minion `minion-on-saltmaster` noch die editor.sls.
+
+In der common.sls wird aus den vielen `state`-Modulen `pkg` als Abstraktion über den Paketmanager der Distributionen verwendet, um `installed` festzuschreiben. Die Liste der `state`-Module findet sich unter https://docs.saltstack.com/en/latest/ref/states/all/index.html .
+
+Der Zielzustand `editor` existiert noch nicht, und soll im Gegensatz zur common.sls in Form eines Ordners angelegt werden:
+
+if [ ! -d "/srv/salt/editor" ]; then sudo mkdir -p /srv/salt/editor; fi
+cat <<EOF | sudo tee /srv/salt/editor/init.sls > /dev/null
+{% if grains['os_family'] == 'Gentoo' %}
+gentoo-specific-package-name:
+  pkg.installed:
+    - name: app-editors/{{ pillar['myeditor'] }}
+#the other contition is elif, in case you are wondering
+{% else %}
+works-on-other-distros:
+  pkg.installed:
+    - name: {{ pillar['myeditor'] }}
+{% endif %}
+EOF
+
+Die Strukturierung in einen Unterordner ist zum Beispiel dann sinnvoll, wenn in der `init.sls` mit `include:\n  - myeditorsetup` ein umfangreichere Datei eingebunden werden soll, oder wenn dotfiles mit `file.managed` verteilt werden sollen.
+
+Bleibt nur noch, die wichtigsten Varianten vorzustellen, die Zielzustände auch anzuwenden. In der Reihenfolge von sehr spezifisch zu Rundumerneuerung:
+
+```
+sudo salt 'minion-on-saltmaster' state.sls editor
+sudo salt 'minion-on-saltmaster' state.apply
+sudo salt '*' state.highstate
+```
+
+Weil dies die Aufrufe mittels `/usr/bin/salt` sind, ist es das remote execution module `state`, welches hier ausgeführt wurde. Mit `state.apply` wird der benannte Zustand `editor` angewendet, `state.apply` kombiniert alle Zustandsdefinitionen, und `state.highstate` ist ein historisch gewachsener Alias.
+
+Einem Minion kann in seiner Konfiguration mittels `startup_states` bei seinem Start die Ausführung eines Abgleichs der Zielzustände konfiguriert werden.
 
 ### Wiederaufgewärmte Formeln
 
+In dem Beispiel mit den Besonderheiten des Gentoo-Paketmanagers wurde eine sehr einfache Bedingung geprüft. Mit den `formulas` gibt es eine Vielzahl an vorgefertigten `state`-Definitionen, dokumentiert unter https://docs.saltstack.com/en/latest/topics/development/conventions/formulas.html und verfügbar auf GitHub unter https://github.com/saltstack-formulas .
 
-Hiermit endet der Mitmachteil.
+Zur Einführung soll die Benutzerverwaltung mittels der `users-formula` vorgestellt werden:
+
+```
+if [ ! -d "/srv/formulas" ]; then sudo mkdir -p /srv/formulas; fi
+cd /srv/formulas
+if [ ! -d "users-formula" ]; then 
+  git clone https://github.com/saltstack-formulas/users-formula.git
+else
+  cd users-formula; git pull;
+fi
+if [ ! -d "/etc/salt/master.d" ]; then sudo mkdir -p /etc/salt/master.d; fi
+cat <<EOF | sudo tee /etc/salt/master.d/99_fileremotes.conf > /dev/null
+file_roots:
+  base:
+    - /srv/formulas/users-formula
+EOF
+if [ ! -d "/srv/pillar" ]; then sudo mkdir -p /srv/pillar; fi
+if [ -f "/srv/pillar/top.sls" ]; then sudo mv /srv/pillar/top.sls /srv/pillar/top.sls.bak; fi
+cat <<EOF | sudo tee -a /srv/pillar/top.sls > /dev/null
+base:
+  'minion-on-saltmaster':
+    - editor
+    - users
+EOF
+cat <<EOF | sudo tee /srv/pillar/users.sls > /dev/null
+users:
+  john:
+    fullname: John Doe
+    #python3 -c 'import crypt; print(crypt.crypt("john2017", crypt.mksalt(crypt.METHOD_SHA512)))'
+    password: $6$xjCUEpgvWTktWz18$LF8Wcsgqg4PGY5nVGT8dsgXsMzH5ZFFewCgrCcaCRCpt5S.4y8e/mShHkgLwhRAZz4DlRn5GgOuOpfscgj3AQ.
+    enforce_password: True
+    sudouser: True
+    sudo_rules:
+      - ALL=(ALL) NOPASSWD:ALL
+EOF
+sudo salt 'minion-on-saltmaster' saltutil.refresh_pillar
+sudo systemctl restart salt-master.service
+```
+
+Hier wurde das Git Repository lokal geklont, und ein weiterer Pfad zu `file_roots` hinzugfügt. Dadurch findet der Aufruf des remote execution moduls `state.sls users` die Datei `/srv/formulas/users-formula/users/init.sls` und wendet die im `pillar` Pfad hinterlegten, nur dem adressierten Minion mitgeteilten, beispielsweise definierten Benutzerinformationen an.
+
+In der Datei `/srv/formulas/users-formula/users/map.jinja` ist zu sehen, wie mittels der eingebetteten Templatesprache `Jinja2` eine umfassende Abstraktion nach Distributionen festgelegt wird.
+
+Unter `/home` ist nun das Verzeichnis `/home/john` zu sehen, er hat das Passwort `john2017`.
+
+Die YAML-Datei `/srv/pillar/users.sls` beginnt mit dem Schlüssel `users`, der nach YAML-Art nur einmal vorkommen kann. Deshalb ist das folgende Beispiel für das salt-automatisierte Löschen von Benutzern entsprechend eingerückt:
+
+```
+  pi:
+    absent: True
+    purge: True
+    force: True
+  alarm:
+    absent: True
+    purge: True
+    force: True
+```
+
+Dies sind typische Konfigurationen, um auch Raspbian oder Arch Linux den Standardbenutzer zu entfernen.
+
+Hiermit endet der Mitmachteil. Die folgenden Codebeispiele und Kommandos sind zwar auch funktionierende Beispiele, aber mitunter nur illustrativ und nicht notwendigerweise vollständig -- und prüfen nicht auf vorhandene Einstellungen.
 
 ## Fortgeschrittene Anwendung
 
 ### GitHub remote
+
+Leider ist die Installation der Abhängigkeiten unter allen Distributionen nicht einheitlich, deswegen kann nicht copy&paste-fertig ein Minimalbeispiel angeboten werden. Aber dass Saltstack es besonders trivial macht, Systemadminstration aus einem Repository (Git, svn, Mercurial und andere) zu speisen macht die Verwendung in der Praxis so angenehm.
+
+
 
 ### Proxy-Minion
 
