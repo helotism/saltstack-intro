@@ -29,8 +29,6 @@ An zentraler Stelle arbeitet der Salt-"Master", er versorgt Minions mit entweder
 
 Die Minions melden sich über (die Python-Bindings von) ZeroMQ beim Master mit einem individuellen Schlüssel, welcher bei Bedarf im Vorfeld generiert werden kann. Der Master muss den Schlüssel des Minions nach dessen erster Kontaktaufnahme bestätigen, dem Master wird der Schlüssel zur automatischen Bestätigung vorher übertragen. Bei Bedarf kann eine TLS-Verschlüsselung zwischen Master und Minion in der Konfiguration aktiviert werden, standardmäßig ist sie nicht aktiviert.
 
-
-
 Der Master kann als "Syndic" dupliziert werden, in Verbindung mit einer entsprechenden Netzwerk-Topologie auch Subnetze übergreifend. Auf dem Master kann auch ein Minion zur Selbstverwaltung laufen. Minions können auf mehrere Master ("multi-master") horchen.
 
 Die Konfiguration von Master und Minion erfolgt in Dateien in /etc/salt/, unter Windows in C:\salt\config\minion. Die Dateien /etc/salt/master und /etc/salt/Minion enthalten alle default-Konfigurationsparameter als auskommentierte Zeilen. Eine dieser Einstellungen `default_include` ist, in /etc/salt/master.d/ oder minion.d/ alle Dateien mit der Endung .conf einzulesen, die Inhalte der Datei mit dem letzten alphanumerischen Dateinamen gewinnen.
@@ -100,31 +98,17 @@ https://docs.saltstack.com/en/latest/ref/states/all/index.html
 Die in der Dokumentation verwendete Form der State-Files ist YAML, daneben sind aber auch eine Vielzahl weiterer "Renderer-Module" https://docs.saltstack.com/en/latest/ref/renderers/all/index.html implementiert und selbst auch reines Python ist möglich: Saltstack erzeugt unter der Haube daraus Python-Dictionaries.
 Auch eine Verkettung von Renderern ist möglich.
 
-.....
-
-In wenn-dann-Bedingungen können die feinen Unterschiede zwischen Distributionen abstrahiert werden, in Schleifen eine Reihe von Benutzern bearbeitet oder ...
+In wenn-dann-Bedingungen können die feinen Unterschiede zwischen Distributionen abstrahiert werden, in Schleifen eine Reihe von Benutzern bearbeitet oder subtile Konfigurationsunterschiede abgefangen werden.
 
 Die in state-files hinterlegten Informationen werden in einer Art Broadcast an alle (per key akzeptierten) Minions geschickt. Vertrauliche Informationen sind daher ein Fall für die Pillar genannte Verteilung, welche diese Daten nur zwischen dem Master und dem Minion austauscht, für den die Information bestimmt ist.
 
-Die Minions werden mit Jobs angesprochen, die Returnwerte werden typischerweise auf der Kommandozeile angezeigt, können aber mit Returners.... weiterverarbeitet werden.
+Die Minions werden mit Jobs angesprochen, die Returnwerte werden typischerweise auf der Kommandozeile angezeigt, können aber mit `returner` weiterverarbeitet werden.
 
-Von den Minions wird ein Soft-und Hardware-Inventory in Form von grains abgerufen, die typischen Standardwerte wie Distribution, Arbeitsspeicher und v.a.m. können um eigene .... erweitert werden. Das grains-System ist für eher statische Daten gedacht.
+Von den Minions wird ein Soft-und Hardware-Inventory in Form von grains abgerufen, die typischen Standardwerte wie Distribution, Arbeitsspeicher und v.a.m. können um eigene Informationen erweitert werden, etwa die Rack-Nummer. Das grains-System ist für eher statische Daten gedacht.
 
-Ein flexiblerer Reaktionsweg auf Minion-Zustandsänderungen sind die beacons: Hier beginnt die MesssageQueue... ihre Stärke an den Tag zu legen. Läuft etwa die Festplatte eines Minions voll, ist ein Schwellwert als Auslöser eines beacon-events konfigurierbar, der auf dem Master von einem .... verarbeitet wird. Diese Events kommen in Form eines Pfades an, so dass auch mit Wildcards ein .... getriggert werden kann.
+Ein flexiblerer Reaktionsweg auf Minion-Zustandsänderungen sind die beacons: Hier beginnt die MesssageQueue ihre Stärke an den Tag zu legen. Läuft etwa die Festplatte eines Minions voll, ist ein Schwellwert als Auslöser eines beacon-events konfigurierbar, der auf dem Master von einem `reactor` verarbeitet wird. Diese Events kommen in Form eines Pfades an, so dass auch mit Wildcards eine Reaktion getriggert werden kann.
 
-Neben der Messagequeue beruht die Funktionsweise stark auf Dateisynchronisation...: Damit ein Minion eine Module-Funktion ausführen kann, muss die entsprechende Datei auf dem Minion vorhanden sein. Saltstack synchronisiert daher die mitgelieferten oder vom Benutzer erstellten Python-Dateien im Hintergrund. Auch dieser Austausch ist in ZeroMq implementiert.
-
-Zwischen den Minions...
-
-
-state_top_saltenv
-top_file_merging_strategy
-env_order
-default_top
-master_tops
-
-
-
+Neben der Messagequeue beruht die Funktionsweise stark auf Dateisynchronisation: Damit ein Minion eine Module-Funktion ausführen kann, muss die entsprechende Datei auf dem Minion vorhanden sein. Saltstack synchronisiert daher die mitgelieferten oder vom Benutzer erstellten Python-Dateien im Hintergrund. Auch dieser Austausch ist in ZeroMq implementiert.
 
 ## Eine praktische Einführung
 
@@ -501,25 +485,90 @@ In einem privaten Repository kann dann beispielsweise das auf eine bare-metal-In
 
 ### Proxy-Minion
 
+Ein weiteres interessantes Konzept ist das der Proxy-Minions. Wenn ein Gerät keine Resourcen für Python hat, also kein richtiger Minion-Client installiert werden kann, aber eine andere Art von Schnittstelle aufweist, dann kann ein normaler Minion dessen Steuerung übernehmen.
+
+Am Beispiel des in der Enthusiastenszene beliebten Microcontrollers ESP8266 kann ein Proxy-Minion wie folgt aussehen:
+
+Auf dem ESP8266 gibt es die alternative Firmware Micropython, welche auch die bekannt solide serielle Kommunikation mittels `pyserial` ermöglicht. Dadurch erhält der ESP8266 ein von außen programmatisch ansprechbares Interface; andere sind ebenfalls möglich, Saltstack gibt keine Einschränkung vor.
+
+In Salt schreibt man dann ein eigenes `module` in Python. Diese `module` kann man sich auch für die Kommandozeile oder `state`-Definitionen schreiben. Es ist (lediglich) üblich, die unbeabsichtigte Verwendung in `state`-Definitionen und von der Kommandozeile zu sperren.
+
+Nachdem Saltstack um ein generisches Modul erweitert wird, schreibt man dann ein `proxymodule` Wrapper um dieses `module` herum. Es ist dieser Wrapper, der dann bsw. in State-Definitionen angesprochen wird. Die Besonderheit bei einem für einen Proxy-Minion gedachten `proxymodule` ist lediglich, dass es zwingend die Funktionen init(), shutdown(), ping(), grains(), initialized() und __virtual__() implementieren muss.
+
+Die Dokumentation unter https://docs.saltstack.com/en/latest/topics/proxyminion/index.html zeigt den generellen Aufbau.
+
+Die Micropython-Portierung auf dem ESP8266 verwendet man meinstens mit einem Wrapper um `pyserial`. Die konkrete Implementation sieht dann so aus, dass ein `module` prüft, ob alle Abhängigkeiten erfüllt sind, und ansonsten als sehr leichtgewichtiger Code an das `proxymodule` übergibt. Im `proxymodule` wird dann die serielle Verbindung hergestellt, der Status dieser Verbindung wird dann als Rückgabewert von `ping()` verwendet. Ein Aufruf von `grains()` schickt dann über die serielle Verbindung einen Einzeiler nach der Art "retourniere mir ein Dictionary mit IP-Adressen, Seriennummer und dem freien Speicher". Mit ein wenig (serieller Kommunikation geschuldeter) Umwandlung hat man damit im Aufruf von `salt '*' grains.items` auch die IP-Adresse seines IoT-Devices.
+
+Zusammen mit Dateitransfer via `pyserial` (denn Saltstack hat zwingend die Abhängigkeit von Python2.7, `pyserial` steht also immer zur Verfügung) ist auch das Update von Konfigurationsparametern leicht zu implemetieren -- mit allen Salt-Vorteilen oben drauf (diese Datei kann in einem Git-Repo ilegen, kann auf Events in der Messagequeue reagieren und die Anzahl der Proxy-Minions ist hochgradig skalierbar.)
+
+Es existieren Referenz-Implemantationen via SSH und REST-API in der oben genannten Saltstack-Dokumentation, und der Autor hat seinen wenig eleganten ESP8266-Testcode unter https://github.com/cprior/micropython_esp8266 abgelegt.
+
+
 ### salt-cloud mit DigitalOcean
+
+Wie alle anderen Could-Provider von virtuellen Maschinen bietet auch DigitalOcean eine API an und in den Knotoeinstellungen kann ein Auth-Token generiert werden. Es gibt fertige Basis-Images, man kann darauf aufbauend eigene Images (`droplets`) administrieren.
+
+Saltstack beinhaltet einen Wrapper um diese API, und in den vier Ordnern `/etc/salt/cloud*` konfiguriert man zuerst den Zugang:
+
+```
+cat /etc/salt/cloud.providers.d/sample.conf
+digitalocean:
+  driver: digital_ocean
+  personal_access_token: foobar
+  ssh_key_file: /etc/salt/pki/cloud/salt-cloud-digitalocean_rsa
+  ssh_key_names: salt-cloud-digitalocean_rsa.pub,cpr
+  script: bootstrap-salt
+  location: Frankfurt 1
+```
+
+Welche Images als Vorlagen existeiren, kann man sich mit Saltstack als Wrapper ebenso ansehen wie andere (anbieterspezifische) Informationen: `salt-cloud --list-images digitalocean`. Es kommt eine lange Liste zurück, inklusive `16.04.1 x64`.
+
+Die Festlegung des zu verwendeten Images kann dann so aussehen:
+
+```
+cat /etc/salt/cloud.profiles.d/ubuntu-digitalocean.conf
+digitalocean-ubuntu:
+  provider: digitalocean
+  script_args: " -P -p screen -p vim git v2016.3.2 "
+  image: 16.04.1 x64
+  size: 512MB
+  private_networking: True
+  backups_enabled: False
+  ipv6: False
+  create_dns_record: False
+
+test-saltmaster:
+  extends: digitalocean-ubuntu
+  minion:
+    grains:
+      env: test
+
+test-minion:
+  extends: digitalocean-ubuntu
+  minion:
+    grains:
+      env: test
+```
+
+Hier wurden also drei Minions festgelegt. Um sie zu erstellen, werden diese Profile aufgerufen:
+
+`salt-cloud -p digitalocean test-saltmaster test-minion`
+
+Die Option `-d` zerstört die virtuelle Instanz wieder.
+
 
 ### Das andere Betriebssystem
 
+Saltstack kann auch Windows-Minions verwalten und bringt in einem Installer eine Python-Installation samt Abhängigkeiten mit (was insbesondere bei den ZeroMQ-Abhängigkeiten sehr dankbar macht). Der Minion läuft dann als Windows-Dienst (eingerichtet mittels nssm) und kann auch "silent" installiert werden, unter Angabe des Master. Die Dokuentation unter https://docs.saltstack.com/en/latest/topics/installation/windows.html bietet einen guten Einstieg.
+
+Der Minion meldet sich dann ganz normal mit seinem Schlüssel zur Bestätigung beim Master. Der Aufruf vom Master aus `salt -G 'os:windows' pkg.list_pkgs` liefert das Software-Inventory des Windows-Rechners.
+
+Es gibt ein Repository mit OpenSource-Software `state`-Defintionen, beschrieben unter https://docs.saltstack.com/en/latest/topics/windows/windows-package-manager.html und dort ist zum Beispiel alles hinterlegt, was die Installation von Notepad++ oder auch Blender ausmacht.
+Wer dieses Repository mal schnell ausprobieren will, sollte in der Konfiguration des Master `winrepo_provider: gitpython` verwenden, weil dann nicht der auf manchen Distributionen holprige Weg der Installation von `pygit` notwendig ist.
+
+In der Liste der mitgelieferten State-Modules unter https://docs.saltstack.com/en/latest/ref/states/all/index.html finden sich mit dem Prefix `win_` einige für Windows-Administratoren interessante Funktionen. Salstack reicht natürlich in keinster Weise an Active-Directory heran, aber um nur den einen oder anderen CAD-Rechner oder Buchhaltungs-PC zumindest in das `grains`-System einzubinden ist Saltstack sehr gut brauchbar. Und nicht zuletzt rundet es eine Erkundung der Möglichkeiten ab, auch auf solchen Minions mal eben folgendes ausführen zu können:
+
 ```
-salt-run winrepo.update_git_repos
-winrepo_provider: gitpython
-salt -G 'os:windows' pkg.refresh_db
-
-salt-run winrepo.genrepo
-salt winminion pkg.refresh_db
-
-https://github.com/saltstack/salt-winrepo.git
-
-salt '*' status.uptime
-
-salt -G 'os:windows' pkg.list_pkgs
-salt '*' status.uptime
-
 salt -G 'os:windows' pkg.install gedit
 W7-minion:
     ----------
@@ -536,10 +585,11 @@ W7-minion:
 
 # Wege zur Saltstack-Kennerschaft
 
-event bus beobachten
-- Returners
-Jobs
+Wer sich tiefer mit Saltstack beschäftigen möchte, sei abschliessend empfohlen, sich zu gegebener Zeit auch die Events in der Messagequeue anzusehen mit `salt-run state.event pretty=True` (mittels salt-run von Master oder Minion).
 
+Das System der `beacons` und `reactor` ist unter anderem geeignet, mit `inotify` auf den Minions den Status von Konfigurationsdateien zu überwachen, und vom Master aus darauf adäquat zu reagieren.
+
+Alle Jobs auf den Minions sind auf dem Master mit ihren Rückgabewerten archivierbar.
 
 Saltstack arbeitet als Python-Software letztlich mit dem Datentyp dictionary. Dass in Saltstack normalerweise YAML-Dateien geschrieben werden, ist nur die Oberfläche des Salzbergs. Saltstack kann letztlich alles entgegennehmen, was ein Python dictionary ausgibt, auch die YAML-Dateien laufen nur durch PyYAML. Im Verbund mit einer netzwerkfähigen Messagequeue und Dateisynchronisation erscheint der aktuelle Saltstack Slogan "Automatisierung des Rechenzentrums" sehr eng gegriffen. Vielmehr ist in allen Umgebungen, wo ein Python-Interpreter vorstellbar ist und noch kein Scheduler notwendig, Saltstack als Messagebus-Statemachine eine umfassende und verlässliche Variante, hochkomplexe Umgebungen zu verwalten.
 
