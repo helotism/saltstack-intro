@@ -27,6 +27,9 @@ Auf allen Distributionen installieren sich die Salstack-Komponenten als Dienst, 
 
 An zentraler Stelle arbeitet der Salt-"Master", er versorgt Minions mit entweder einer Python-Agentensoftware, über eine SSH-Verbindung oder auch einen (individuell zu schreibenden) Proxy-Minion als Interface zu einem Webservice oder sonst betriebssystemlosen Gerät.
 
+![](../../../tec/images/saltstack-ecosystem-orbital.png)
+
+
 Die Minions melden sich über (die Python-Bindings von) ZeroMQ beim Master mit einem individuellen Schlüssel, welcher bei Bedarf im Vorfeld generiert werden kann. Der Master muss den Schlüssel des Minions nach dessen erster Kontaktaufnahme bestätigen, dem Master wird der Schlüssel zur automatischen Bestätigung vorher übertragen. Bei Bedarf kann eine TLS-Verschlüsselung zwischen Master und Minion in der Konfiguration aktiviert werden, standardmäßig ist sie nicht aktiviert.
 
 Der Master kann als "Syndic" dupliziert werden, in Verbindung mit einer entsprechenden Netzwerk-Topologie auch Subnetze übergreifend. Auf dem Master kann auch ein Minion zur Selbstverwaltung laufen. Minions können auf mehrere Master ("multi-master") horchen.
@@ -369,6 +372,7 @@ In der common.sls wird aus den vielen `state`-Modulen `pkg` als Abstraktion übe
 
 Der Zielzustand `editor` existiert noch nicht, und soll im Gegensatz zur common.sls in Form eines Ordners angelegt werden:
 
+```
 if [ ! -d "/srv/salt/editor" ]; then sudo mkdir -p /srv/salt/editor; fi
 cat <<EOF | sudo tee /srv/salt/editor/init.sls > /dev/null
 {% if grains['os_family'] == 'Gentoo' %}
@@ -382,6 +386,7 @@ works-on-other-distros:
     - name: {{ pillar['myeditor'] }}
 {% endif %}
 EOF
+```
 
 Die Strukturierung in einen Unterordner ist zum Beispiel dann sinnvoll, wenn in der `init.sls` mit `include:\n  - myeditorsetup` ein umfangreichere Datei eingebunden werden soll, oder wenn dotfiles mit `file.managed` verteilt werden sollen.
 
